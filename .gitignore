@@ -1,4 +1,5 @@
 dbcc
+test_64byte
 *.dbc
 core
 vgcore.*
