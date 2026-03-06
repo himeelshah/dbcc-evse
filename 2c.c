@@ -636,7 +636,7 @@ static int msg_pack(can_msg_t *msg, FILE *c, const char *name, bool motorola_use
 	assert(name);
 	assert(copts);
 	const bool message_has_signals = motorola_used || intel_used;
-	print_function_name(c, "pack", name, " {\n", false, "uint64_t", false, god);
+	print_function_name(c, "pack", name, " {\n", false, "uint8_t", false, god);
 	if (copts->generate_asserts) {
 		fprintf(c, "\tassert(o);\n");
 		fprintf(c, "\tassert(data);\n");
@@ -656,7 +656,7 @@ static int msg_pack(can_msg_t *msg, FILE *c, const char *name, bool motorola_use
 			return -1;
 
 	if (message_has_signals) {
-		fprintf(c, "\t*data = %s%s%s%s%s;\n",
+		fprintf(c, "\t{ uint64_t _packed = %s%s%s%s%s; memcpy(data, &_packed, sizeof(_packed)); }\n",
 			swap_motorola && motorola_used ? "reverse_byte_order" : "",
 			motorola_used ? "(m)" : "",
 			motorola_used && intel_used ? "|" : "",
@@ -675,17 +675,19 @@ static int msg_unpack(can_msg_t *msg, FILE *c, const char *name, bool motorola_u
 	assert(name);
 	assert(copts);
 	const bool message_has_signals = motorola_used || intel_used;
-	print_function_name(c, "unpack", name, " {\n", true, "uint64_t", true, god);
+	print_function_name(c, "unpack", name, " {\n", true, "const uint8_t *", true, god);
 	if (copts->generate_asserts) {
 		fprintf(c, "\tassert(o);\n");
-		fprintf(c, "\tassert(dlc <= 8);\n");
+		fprintf(c, "\tassert(dlc <= 64);\n");
 	}
-	if (message_has_signals)
+	if (message_has_signals) {
 		fprintf(c, "\tregister uint64_t x;\n");
+		fprintf(c, "\tuint64_t _raw; memcpy(&_raw, data, sizeof(_raw));\n");
+	}
 	if (motorola_used)
-		fprintf(c, "\tregister uint64_t m = %s(data);\n", swap_motorola ? "reverse_byte_order" : "");
+		fprintf(c, "\tregister uint64_t m = %s(_raw);\n", swap_motorola ? "reverse_byte_order" : "");
 	if (intel_used)
-		fprintf(c, "\tregister uint64_t i = %s(data);\n", swap_motorola ? "" : "reverse_byte_order");
+		fprintf(c, "\tregister uint64_t i = %s(_raw);\n", swap_motorola ? "" : "reverse_byte_order");
 	if (!message_has_signals)
 		fprintf(c, "\tUNUSED(o);\n\tUNUSED(data);\n");
 	if (msg->dlc)
@@ -865,7 +867,7 @@ static int switch_function(FILE *c, dbc_t *dbc, char *function, bool unpack,
 		fprintf(c, "\tassert(o);\n");
 		fprintf(c, "\tassert(id < (1ul << 29)); /* 29-bit CAN ID is largest possible */\n");
 		if (dlc)
-			fprintf(c, "\tassert(dlc <= 8);         /* Maximum of 8 bytes in a CAN packet */\n");
+			fprintf(c, "\tassert(dlc <= 64);        /* Maximum of 64 bytes in a CAN FD packet */\n");
 	}
 
 	fprintf(c, "\tswitch (id) {\n");
@@ -1185,10 +1187,10 @@ int dbc2c(dbc_t *dbc, FILE *c, FILE *h, const char *name, dbc2c_options_t *copts
 	}
 
 	if (copts->generate_unpack)
-		switch_function(h, dbc, "unpack", true, true, "uint64_t", true, god, copts);
+		switch_function(h, dbc, "unpack", true, true, "const uint8_t *", true, god, copts);
 
 	if (copts->generate_pack) {
-		switch_function(h, dbc, "pack", false, true, "uint64_t", false, god, copts);
+		switch_function(h, dbc, "pack", false, true, "uint8_t", false, god, copts);
 		switch_message_dlc(h, dbc, true, copts);
 	}
 
@@ -1222,6 +1224,7 @@ int dbc2c(dbc_t *dbc, FILE *c, FILE *h, const char *name, dbc2c_options_t *copts
 
 	if (fprintf(c, "#include \"%s\"\n", name) < 0) return -1;
 	if (fprintf(c, "#include <inttypes.h>\n") < 0) return -1;
+	if (fprintf(c, "#include <string.h>\n") < 0) return -1;
 	if (dbc->use_float)
 		fprintf(c, "#include <math.h> /* uses macros NAN, INFINITY, signbit, no need for -lm */\n");
 	if (copts->generate_asserts)
@@ -1244,10 +1247,10 @@ int dbc2c(dbc_t *dbc, FILE *c, FILE *h, const char *name, dbc2c_options_t *copts
 		}
 
 	if (copts->generate_unpack)
-		switch_function(c, dbc, "unpack", true, false, "uint64_t", true, god, copts);
+		switch_function(c, dbc, "unpack", true, false, "const uint8_t *", true, god, copts);
 
 	if (copts->generate_pack) {
-		switch_function(c, dbc, "pack", false, false, "uint64_t", false, god, copts);
+		switch_function(c, dbc, "pack", false, false, "uint8_t", false, god, copts);
 		switch_message_dlc(c, dbc, false, copts);
 	}
 

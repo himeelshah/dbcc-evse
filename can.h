@@ -80,9 +80,9 @@ typedef struct {
 	char *name;          /**< can message name */
 	char *ecu;           /**< name of ECU */
 	signal_t **sigs;     /**< signals that can decode/encode this message*/
-	uint64_t data;       /**< data, up to eight bytes, not used for generation */
+	uint8_t data[64];    /**< data, up to 64 bytes (CAN FD), not used for generation */
 	size_t signal_count; /**< number of signals */
-	unsigned dlc;        /**< length of CAN message 0-8 bytes */
+	unsigned dlc;        /**< length of CAN FD message 0-64 bytes */
 	unsigned long id;    /**< identifier, 11 or 29 bit */
 	bool is_extended;    /**< is extended mode message (29bit) */
 	char *comment;
