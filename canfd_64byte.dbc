@@ -1,0 +1,13 @@
+VERSION ""
+
+NS_ :
+
+BS_:
+
+BU_:
+
+BO_ 1 CANFDMessage: 64 Vector__XXX
+ SG_ Signal0 : 0|8@1+  (1,0) [0|255]        "" Vector__XXX
+ SG_ Signal1 : 8|16@1+ (1,0) [0|65535]      "" Vector__XXX
+ SG_ Signal2 : 24|32@1+ (1,0) [0|4294967295] "" Vector__XXX
+
